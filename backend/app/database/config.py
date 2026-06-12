@@ -1,0 +1,1 @@
+DATABASE_URL = "postgresql://postgres:Yaswanth%400904@localhost:5432/securetrace_db"
