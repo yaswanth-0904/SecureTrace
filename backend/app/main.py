@@ -1,9 +1,14 @@
 from fastapi import FastAPI
 from sqlalchemy import text
+import app.models
+
 
 from app.database.database import engine
+from app.api.transaction_api import router as transaction_router
 
 app = FastAPI()
+
+app.include_router(transaction_router)
 
 
 @app.get("/")

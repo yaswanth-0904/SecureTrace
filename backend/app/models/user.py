@@ -1,29 +1,41 @@
 from sqlalchemy import Column
 from sqlalchemy import Integer
 from sqlalchemy import String
-from sqlalchemy import ForeignKey
 
 from app.database.base import Base
 
 
-class Transaction(Base):
-    __tablename__ = "transactions"
+class User(Base):
+    __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-
-    sender_account_id = Column(
+    id = Column(
         Integer,
-        ForeignKey("accounts.id")
+        primary_key=True,
+        index=True
     )
 
-    receiver_account_id = Column(
-        Integer,
-        ForeignKey("accounts.id")
-    )
-
-    amount = Column(Integer)
-
-    transaction_type = Column(
+    full_name = Column(
         String,
-        default="TRANSFER"
+        nullable=False
     )
+
+    email = Column(
+        String,
+        unique=True,
+        nullable=False
+    )
+
+    security_score = Column(
+        Integer,
+        default=100
+    )
+
+    role = Column(
+        String,
+        default="USER",
+        nullable=False
+    )
+    auth_token = Column(
+    String,
+    nullable=True
+)
