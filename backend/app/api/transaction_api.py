@@ -8,7 +8,7 @@ from app.database.database import get_db
 from app.models.transaction import Transaction
 from app.models.dna_record import DNARecord
 from app.models.user import User
-
+from app.models.dna_record import DNARecord
 from app.schemas.transaction_schema import TransactionCreate
 from app.schemas.dna_split_schema import DNASplitRequest
 from app.schemas.login_schema import LoginRequest
@@ -51,21 +51,22 @@ def create_transaction(
     if risk_score >= 90:
         is_flagged = 1
         is_frozen = 1
-        
+
     dna_record = DNARecord(
-    dna_code=dna_code,
-    transaction_id=transaction.id,
-    amount=payload.amount,
-    remaining_amount=payload.amount,
-    risk_score=risk_score,
-    is_flagged=is_flagged,
-    is_frozen=is_frozen,
-)
+        dna_code=dna_code,
+        transaction_id=transaction.id,
+        amount=payload.amount,
+        remaining_amount=payload.amount,
+        risk_score=risk_score,
+        is_flagged=is_flagged,
+        is_frozen=is_frozen,
+    )
 
     db.add(dna_record)
     db.commit()
 
     return {
+
         "transaction_id": transaction.id,
         "dna_code": dna_code
     }
@@ -133,13 +134,13 @@ def split_dna(
     )
 
     child_record = DNARecord(
-    dna_code=child_dna,
-    parent_dna=parent.dna_code,
-    amount=payload.split_amount,
-    remaining_amount=payload.split_amount,
-    risk_score=parent.risk_score,
-    is_flagged=parent.is_flagged,
-    is_frozen=parent.is_frozen
+        dna_code=child_dna,
+        parent_dna=parent.dna_code,
+        amount=payload.split_amount,
+        remaining_amount=payload.split_amount,
+        risk_score=parent.risk_score,
+        is_flagged=parent.is_flagged,
+        is_frozen=parent.is_frozen
 )
 
     db.add(child_record)
@@ -166,8 +167,7 @@ def trace_family(
             "message": "DNA Not Found"
         }
 
-    children = db.query(DNARecord).filter(
-        DNARecord.parent_dna == dna_code
+    children = db.query(DNARecord).filter(        DNARecord.parent_dna == dna_code
     ).all()
 
     child_list = []
@@ -202,7 +202,7 @@ def flag_dna(
     ).first()
 
     if not dna_record:
-        return {
+        return {    
             "message": "DNA Not Found"
         }
 
@@ -212,7 +212,7 @@ def flag_dna(
 
     return {
         "dna_code": dna_record.dna_code,
-        "status": "FLAGGED"
+        "status": "Threat Assets"
     }
 
 @router.get("/fraud-queue")
@@ -236,21 +236,26 @@ def fraud_queue(
         }
 
     records = db.query(DNARecord).filter(
-        DNARecord.is_flagged == 1
+    DNARecord.is_flagged == 1,
+    DNARecord.parent_dna.is_(None)
     ).all()
 
     result = []
 
     for record in records:
-        result.append(
-            {
-                "dna_code": record.dna_code,
-                "amount": record.amount,
-                "risk_score": record.risk_score,
-                "status": record.status
-            }
-        )
+        child_count = db.query(DNARecord).filter(
+        DNARecord.parent_dna == record.dna_code
+        ).count()
 
+        result.append(
+        {
+            "dna_code": record.dna_code,
+            "amount": record.amount,
+            "risk_score": record.risk_score,
+            "status": record.status,
+            "child_count": child_count
+        }
+    )
     return result
 
 @router.get("/trace-full-family/{dna_code}")
@@ -309,7 +314,7 @@ def freeze_dna(
     dna_record.is_frozen = 1
 
     audit_log = AuditLog(
-        action="FREEZE",
+        action="freeze",
         dna_code=dna_record.dna_code,
         performed_by=user.email
     )
@@ -322,7 +327,6 @@ def freeze_dna(
         "dna_code": dna_record.dna_code,
         "status": "FROZEN"
     }
-
 
 @router.post("/recover-dna/{dna_code}")
 def recover_dna(
@@ -354,6 +358,8 @@ def recover_dna(
             "message": "DNA Not Found"
         }
 
+    dna_record.status = "RECOVERED"
+    dna_record.is_frozen = 0
     dna_record.recovered_amount = dna_record.amount
 
     audit_log = AuditLog(
@@ -368,10 +374,9 @@ def recover_dna(
 
     return {
         "dna_code": dna_record.dna_code,
-        "recovered_amount": dna_record.recovered_amount,
-        "status": "RECOVERED"
+        "status": "RECOVERED",
+        "recovered_amount": dna_record.recovered_amount
     }
-
 @router.post("/login")
 def login(
     payload: LoginRequest,
@@ -435,3 +440,56 @@ def dashboard(
         }
 
     return get_dashboard_stats(db)
+
+@router.get("/dna-details/{dna_code}")
+def dna_details(
+    dna_code: str,
+    token: str,
+    db: Session = Depends(get_db)
+):
+    user = validate_token(
+        token,
+        db
+    )
+
+    if not user:
+        return {
+            "message": "Invalid Token"
+        }
+
+    dna = db.query(
+        DNARecord
+    ).filter(
+        DNARecord.dna_code == dna_code
+    ).first()
+
+    if not dna:
+        return {
+            "message": "DNA Not Found"
+        }
+
+    return {
+        "dna_code": dna.dna_code,
+        "amount": dna.amount,
+        "status": dna.status,
+        "risk_score": dna.risk_score,
+        "parent_dna": dna.parent_dna,
+        "remaining_amount": dna.remaining_amount,
+        "is_flagged": dna.is_flagged,
+        "is_frozen": dna.is_frozen,
+        "recovered_amount": dna.recovered_amount
+    }
+@router.get("/all-assets")
+def all_assets(db: Session = Depends(get_db)):
+
+    records = db.query(DNARecord).all()
+
+    return [
+        {
+            "dna_code": r.dna_code,
+            "parent_dna": r.parent_dna,
+            "is_flagged": r.is_flagged,
+            "status": r.status
+        }
+        for r in records
+    ]

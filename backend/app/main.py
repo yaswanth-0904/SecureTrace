@@ -1,12 +1,20 @@
 from fastapi import FastAPI
 from sqlalchemy import text
 import app.models
-
-
 from app.database.database import engine
 from app.api.transaction_api import router as transaction_router
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(transaction_router)
 
@@ -14,7 +22,7 @@ app.include_router(transaction_router)
 @app.get("/")
 def home():
     return {
-        "status": "SecureTrace Backend Running"
+        "status": "Securetrace Backend Running"
     }
 
 
