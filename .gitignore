@@ -1,7 +1,16 @@
+<<<<<<< HEAD
 venv/
 __pycache__/
 *.pyc
 .env
 node_modules/
 dist/
+=======
+venv/
+__pycache__/
+*.pyc
+.env
+node_modules/
+dist/
+>>>>>>> baae175fe584cd96bc0ac039456c42d8f56435ef
 .vscode/
